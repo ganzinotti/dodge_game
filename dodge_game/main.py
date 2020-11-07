@@ -13,11 +13,15 @@ from settings import (
     PLAYER_FRICTION,
     PLAYER_ACC,
     FONT_NAME,
+    BORDER,
+    BOTTOM_PADDING,
 )
 import random
 import math
 from enemy import Enemy
 from player import Player
+from buffs import Buff
+from typing import Union
 
 
 class Game:
@@ -25,6 +29,7 @@ class Game:
         # initialize game window, etc
         pg.init()
         # pg.mixer.init()
+
         self.screen = pg.display.set_mode((WIDTH, HEIGHT))
         pg.display.set_caption(TITLE)
         self.clock = pg.time.Clock()
@@ -33,13 +38,27 @@ class Game:
     def new(self):
         # start a new game
         self.score = 0
+        self.level = 0
+        self.buff_correction = 0
+        self.speed_lb = 2
+        self.speed_ub = 6
+
         self.all_enemies = pg.sprite.Group()
+
+        self.all_buffs = pg.sprite.Group()
+        self.add_buff()
 
         self.all_players = pg.sprite.Group()
         self.player = Player(PLAYER_RADIUS, PLAYER_FRICTION, PLAYER_ACC, RED)
         self.all_players.add(self.player)
 
         self.run()
+
+    def add_buff(self):
+        pos_x = random.randint(0 + 15 * BORDER, WIDTH - 15 * BORDER)
+        pos_y = random.randint(0 + 1 * BORDER, HEIGHT - 3 * BORDER)
+        buff = Buff(15, (pos_x, pos_y))
+        self.all_buffs.add(buff)
 
     def run(self):
         # Game Loop
@@ -56,6 +75,7 @@ class Game:
             self.update()
             self.update_score()
 
+            self.collected_buff()
             collision = self.check_collision_all_enemies()
             if collision:
                 self.playing = False
@@ -63,9 +83,15 @@ class Game:
             self.draw()
 
     def add_enemy_to_board(self):
-        size = random.randint(5, 10)
-        height = random.randint(0, HEIGHT)
-        base_speed = random.randint(2, 7) + (self.score // 50)
+        size = random.randint(7, 13)
+        height = random.randint(0, HEIGHT - BOTTOM_PADDING)
+
+        self.level = self.score // 50
+        base_speed = (
+            random.randint(self.speed_lb, self.speed_ub)
+            + self.level
+            - self.buff_correction
+        )
         if random.random() < 0.9:
             # enemy from right
             return Enemy(
@@ -95,6 +121,7 @@ class Game:
     def update(self):
         self.all_players.update()
         self.all_enemies.update()
+        self.all_buffs.update()
 
     def events(self):
         # Game Loop - events
@@ -108,17 +135,42 @@ class Game:
     def draw(self):
         # Game Loop - draw
         self.screen.fill(BLACK)
-        self.draw_text(
-            f"Score: {self.score}",
-            size=22,
-            color=WHITE,
-            x=WIDTH - 20,
-            y=HEIGHT - 20,
-            midtop=False,
-        )
+
         self.all_enemies.draw(self.screen)
         self.all_players.draw(self.screen)
+        self.all_buffs.draw(self.screen)
 
+        pg.draw.line(
+            self.screen,
+            WHITE,
+            (0, HEIGHT - BOTTOM_PADDING),
+            (WIDTH, HEIGHT - BOTTOM_PADDING),
+        )
+
+        pg.draw.rect(
+            self.screen, RED, (0, WIDTH - BOTTOM_PADDING, WIDTH, BOTTOM_PADDING)
+        )
+
+        net_speed = round(
+            (self.speed_lb + self.speed_ub) / 2 + self.level - self.buff_correction, 2
+        )
+        self.draw_text(
+            f"Level: {self.level + 1}, Speed: {net_speed}",
+            size=18,
+            color=WHITE,
+            x=BORDER,
+            y=HEIGHT - BORDER,
+            alignment="midleft",
+        )
+
+        self.draw_text(
+            f"Score: {self.score}",
+            size=18,
+            color=WHITE,
+            x=WIDTH - BORDER,
+            y=HEIGHT - BORDER,
+            alignment="midright",
+        )
         # *after* drawing everything, flip the display
         pg.display.flip()
 
@@ -153,15 +205,17 @@ class Game:
                 if event.type == pg.KEYUP:
                     waiting = False
 
-    def draw_text(self, text, *, size, color, x, y, midtop: bool = True):
+    def draw_text(self, text, *, size, color, x, y, alignment: str = "midtop"):
         font = pg.font.SysFont(FONT_NAME, size)
         text_surface = font.render(text, True, color)
         text_rect = text_surface.get_rect()
 
-        if midtop:
+        if alignment == "midtop":
             text_rect.midtop = (x, y)
-        else:
+        elif alignment == "midright":
             text_rect.midright = (x, y)
+        else:
+            text_rect.midleft = (x, y)
 
         self.screen.blit(text_surface, text_rect)
 
@@ -192,20 +246,27 @@ class Game:
         pg.display.flip()
         self.wait_for_key()
 
+    def collected_buff(self):
+        for buff in self.all_buffs:
+            if self._check_collision_single_object(self.player, buff):
+                buff.kill()
+                self.add_buff()
+                self.buff_correction += 0.2
+
     def check_collision_all_enemies(self) -> bool:
         for enemy in self.all_enemies:
-            if self._check_collision_single_enemy(self.player, enemy):
+            if self._check_collision_single_object(self.player, enemy):
                 return True
 
         return False
 
     @staticmethod
-    def _check_collision_single_enemy(player: Player, enemy: Enemy) -> bool:
+    def _check_collision_single_object(player: Player, obj: Union[Enemy, Buff]) -> bool:
         center_distance = math.sqrt(
-            (player.pos.x - enemy.pos.x) ** 2 + (player.pos.y - enemy.pos.y) ** 2
+            (player.pos.x - obj.pos.x) ** 2 + (player.pos.y - obj.pos.y) ** 2
         )
 
-        if center_distance < (player.radius + enemy.size / 2):
+        if center_distance < (player.radius + obj.size / 2):
             return True
         else:
             return False

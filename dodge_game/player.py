@@ -1,5 +1,5 @@
 import pygame as pg
-from settings import WIDTH, HEIGHT, PLAYER_RADIUS, RED
+from settings import WIDTH, HEIGHT, PLAYER_RADIUS, RED, BOTTOM_PADDING
 import pygame.gfxdraw as gfxdraw
 from typing import Tuple
 
@@ -54,9 +54,9 @@ class Player(pg.sprite.Sprite):
             self.pos.x = 0
         if self.pos.x < 0:
             self.pos.x = WIDTH
-        if self.pos.y > HEIGHT:
+        if self.pos.y > HEIGHT - BOTTOM_PADDING:
             self.pos.y = 0
         if self.pos.y < 0:
-            self.pos.y = HEIGHT
+            self.pos.y = HEIGHT - BOTTOM_PADDING
 
         self.rect.center = self.pos

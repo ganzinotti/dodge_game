@@ -3,9 +3,12 @@ FONT_NAME = "monospace"
 FONT_SIZE = 35
 
 # game options/settings
-WIDTH = 800
-HEIGHT = 600
+WIDTH = 1200
+BOTTOM_PADDING = 40
+HEIGHT = 600 + BOTTOM_PADDING
 FPS = 60
+
+BORDER = 20
 
 # Player properties
 PLAYER_RADIUS = 10
