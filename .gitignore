@@ -1,4 +1,4 @@
-dodge_game/__pycache__/*
+__pycache__/
 
 ### jupyter notebooks ###
 .ipynb_checkpoints
